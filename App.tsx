@@ -143,6 +143,9 @@ export default function App() {
       const newMap = { ...gameMap, gold: remainingGold };
       setGameMap(newMap);
     }
+    // 生成敌人团队并保存到状态
+    const enemy = generateEnemyTeam();
+    setEnemyTeam(enemy);
     setBattleTeam(team);
     setPlayerHeroes(allHeroes); // 保存全局英雄
     setCurrentScreen('battle');
@@ -242,9 +245,9 @@ export default function App() {
     setCurrentScreen('map');
   };
 
-  // 渲染战斗准备界面
-  const renderBattlePrep = () => {
-    if (!gameMap || !selectedNode) return null;
+  // 生成敌人团队
+  const generateEnemyTeam = (): Hero[] => {
+    if (!selectedNode) return [];
     
     // 敌人数量
     let enemyCount = 0;
@@ -281,8 +284,18 @@ export default function App() {
       });
     }
     
-    // 保存敌人团队到状态
-    setEnemyTeam(newEnemyTeam);
+    return newEnemyTeam;
+  };
+
+  // 渲染战斗准备界面
+  const renderBattlePrep = () => {
+    if (!gameMap || !selectedNode) return null;
+    
+    const enemyCount = selectedNode.type === 'monster' ? 1 + Math.floor((currentLayer - 1) / 3) :
+                       selectedNode.type === 'elite' ? 3 + Math.floor((currentLayer - 1) / 2) :
+                       selectedNode.type === 'boss' ? 5 + (currentLayer - 1) * 2 : 0;
+    
+    const newEnemyTeam = generateEnemyTeam();
     
     return (
       <BattlePrepScreen
