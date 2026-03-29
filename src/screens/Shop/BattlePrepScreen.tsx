@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Modal, PanResponder, Animated } from 'react-native';
 import { Hero, HeroRarity, Faction, Job } from '../../types';
 import { baseHeroes } from '../../data/heroes';
@@ -703,17 +703,20 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     });
   };
 
-  // 构建敌方棋子位置映射
-  const enemyBoardMap = new Map<string, Hero>();
-  enemyHeroes.forEach((hero, index) => {
-    // 敌方棋子位置：在敌方区域（y < 4）随机或固定排列
-    // 这里假设敌方棋子按顺序排列在敌方区域的前几行
-    const enemyY = Math.floor(index / BOARD_WIDTH);
-    const enemyX = index % BOARD_WIDTH;
-    if (enemyY < 4) {  // 只在敌方区域
-      enemyBoardMap.set(`${enemyX}_${enemyY}`, hero);
-    }
-  });
+  // 构建敌方棋子位置映射 - 使用 useMemo 避免每次渲染都重新创建
+  const enemyBoardMap = useMemo(() => {
+    const map = new Map<string, Hero>();
+    enemyHeroes.forEach((hero, index) => {
+      // 敌方棋子位置：在敌方区域（y < 4）随机或固定排列
+      // 这里假设敌方棋子按顺序排列在敌方区域的前几行
+      const enemyY = Math.floor(index / BOARD_WIDTH);
+      const enemyX = index % BOARD_WIDTH;
+      if (enemyY < 4) {  // 只在敌方区域
+        map.set(`${enemyX}_${enemyY}`, hero);
+      }
+    });
+    return map;
+  }, [enemyHeroes]);
 
   // 渲染棋盘格子
   const renderBoardCell = (x: number, y: number) => {
