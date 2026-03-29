@@ -6,12 +6,16 @@ interface HomeScreenProps {
   onStartGame: () => void;
   onViewHeroes: () => void;
   onContinueGame: () => void;
+  onToggleDebug?: () => void;
+  debugMode?: boolean;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartGame,
   onViewHeroes,
   onContinueGame,
+  onToggleDebug,
+  debugMode,
 }) => {
   return (
     <View style={styles.container}>
@@ -68,6 +72,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <TouchableOpacity style={styles.secondaryButton} onPress={onViewHeroes}>
             <Text style={styles.secondaryButtonText}>查看所有英雄</Text>
           </TouchableOpacity>
+
+          {onToggleDebug && (
+            <TouchableOpacity 
+              style={[styles.secondaryButton, debugMode && { backgroundColor: '#3a3a1a' }]} 
+              onPress={onToggleDebug}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {debugMode ? '🔍 调试模式: ON' : '🔍 开启调试模式'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 版权 */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Modal, Alert } from 'react-native';
 import { HomeScreen } from './src/screens/Home/HomeScreen';
 import { BattleScreen } from './src/screens/Battle/BattleScreen';
 import { MapScreen } from './src/screens/Map/MapScreen';
@@ -13,8 +13,30 @@ import { Hero, GameMap, MapNode, BattleState } from './src/types';
 // 状态管理
 type Screen = 'home' | 'map' | 'battle' | 'battlePrep' | 'battleResult' | 'nodeDetail' | 'gameOver' | 'relicSelect' | 'victory';
 
+// 调试模式全局变量
+let debugClickCount = 0;
+let debugModeEnabled = false;
+
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
+  const [debugMode, setDebugMode] = useState(false);
+  // 调试弹窗状态
+  const [debugInfo, setDebugInfo] = useState<{step: number, message: string, data?: any, resolve: (() => void) | null}>({
+    step: 0, message: '', data: undefined, resolve: null
+  });
+  const [debugVisible, setDebugVisible] = useState(false);
+
+  // 阻塞式调试等待函数
+  const waitForDebug = (step: number, message: string, data?: any): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!debugMode) {
+        resolve();
+        return;
+      }
+      setDebugInfo({ step, message, data, resolve });
+      setDebugVisible(true);
+    });
+  };
   const [gameMap, setGameMap] = useState<GameMap | null>(null);
   const [selectedNode, setSelectedNode] = useState<MapNode | null>(null);
   const [battleTeam, setBattleTeam] = useState<Hero[]>([]);
@@ -75,17 +97,39 @@ export default function App() {
   };
 
   // 选择节点
-  const handleNodeSelect = (node: MapNode) => {
+  const handleNodeSelect = async (node: MapNode) => {
+    // ========== 调试 ==========
+    await waitForDebug(1, '用户点击节点', { nodeId: node.id, nodeType: node.type });
+    
     // 先更新地图状态：标记节点为已访问
     if (gameMap) {
       const newMap = selectNode(gameMap, node.id);
       setGameMap(newMap);
     }
+    
+    await waitForDebug(2, '已设置 gameMap 状态');
     setSelectedNode(node);
+    
+    await waitForDebug(3, '已设置 selectedNode 状态', { selectedNode: node ? node.id : null });
     
     if (node.type === 'monster' || node.type === 'elite' || node.type === 'boss') {
       // 战斗节点：进入战斗准备
+      // 先设置 selectedNode（确保在切换屏幕前状态已设置）
+      setSelectedNode(node);
+      
+      await waitForDebug(4, '准备切换到 battlePrep', { nodeType: node.type, selectedNodeId: node.id });
+      
+      // ====== 步骤4-1: 关闭调试弹窗 ======
+      setDebugVisible(false);
+      await waitForDebug(4.1, '已关闭调试弹窗', {});
+      
+      // ====== 步骤4-2: 调用 resolve ======
+      if (debugInfo.resolve) debugInfo.resolve();
+      await waitForDebug(4.2, '已调用 resolve', {});
+      
+      // ====== 步骤4-3: 切换屏幕 ======
       setCurrentScreen('battlePrep');
+      await waitForDebug(4.3, '已调用 setCurrentScreen', { screen: 'battlePrep' });
     } else {
       // 其他节点：显示详情
       setCurrentScreen('nodeDetail');
@@ -258,7 +302,7 @@ export default function App() {
       />
     );
   };
-
+    
   // 渲染战斗界面
   const renderBattle = () => {
     if (!selectedNode || battleTeam.length === 0) return null;
@@ -371,39 +415,63 @@ export default function App() {
   // 全屏状态栏
   StatusBar.setHidden(true);
   
-  // 根据屏幕状态渲染
-  switch (currentScreen) {
-    case 'map':
-      return renderMap();
-    case 'battlePrep':
-      return renderBattlePrep();
-    case 'battle':
-      return renderBattle();
-    case 'battleResult':
-      return renderBattleResult();
-    case 'nodeDetail':
-      return renderNodeDetail();
-    case 'gameOver':
-      return renderGameOver();
-    case 'relicSelect':
-      return (
-        <RelicSelectScreen
-          currentLayer={currentLayer}
-          maxLayer={MAX_LAYER}
-          onConfirm={handleRelicConfirm}
-        />
-      );
-    case 'victory':
-      return renderVictory();
-    default:
-      return (
-        <HomeScreen
-          onStartGame={startNewGame}
-          onViewHeroes={() => {}}
-          onContinueGame={continueGame}
-        />
-      );
-  }
+  // ========== 调试 Modal ==========
+  return (
+    <>
+      {/* 主渲染 */}
+      <View style={{ flex: 1 }}>
+        {currentScreen === 'home' && (
+          <HomeScreen
+            onStartGame={startNewGame}
+            onViewHeroes={() => {}}
+            onContinueGame={continueGame}
+            onToggleDebug={() => {
+              debugClickCount++;
+              if (debugClickCount >= 3) {
+                debugModeEnabled = !debugModeEnabled;
+                setDebugMode(debugModeEnabled);
+                debugClickCount = 0;
+                Alert.alert('🔍 调试模式', debugModeEnabled ? '调试模式已开启！\n点击怪物节点后将弹出步骤信息' : '调试模式已关闭');
+              }
+            }}
+            debugMode={debugMode}
+          />
+        )}
+        {currentScreen === 'map' && renderMap()}
+        {currentScreen === 'battlePrep' && renderBattlePrep()}
+        {currentScreen === 'battle' && renderBattle()}
+        {currentScreen === 'battleResult' && renderBattleResult()}
+        {currentScreen === 'nodeDetail' && renderNodeDetail()}
+        {currentScreen === 'gameOver' && renderGameOver()}
+        {currentScreen === 'relicSelect' && (
+          <RelicSelectScreen currentLayer={currentLayer} maxLayer={MAX_LAYER} onConfirm={handleRelicConfirm} />
+        )}
+        {currentScreen === 'victory' && renderVictory()}
+      </View>
+
+      {/* 调试弹窗 */}
+      <Modal visible={debugVisible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#2a2a4a', borderRadius: 16, padding: 20, width: '80%', borderWidth: 2, borderColor: '#ffeb3b' }}>
+            <Text style={{ color: '#ffeb3b', fontSize: 20, fontWeight: 'bold', marginBottom: 15 }}>🔍 调试 - 步骤 {debugInfo.step}</Text>
+            <Text style={{ color: '#fff', fontSize: 16, marginBottom: 10 }}>{debugInfo.message}</Text>
+            {debugInfo.data && (
+              <Text style={{ color: '#4ade80', fontSize: 12, fontFamily: 'monospace', marginBottom: 20 }}>{JSON.stringify(debugInfo.data)}</Text>
+            )}
+            <TouchableOpacity
+              style={{ backgroundColor: '#4ade80', padding: 15, borderRadius: 8, alignItems: 'center' }}
+              onPress={() => {
+                setDebugVisible(false);
+                if (debugInfo.resolve) debugInfo.resolve();
+              }}
+            >
+              <Text style={{ color: '#000', fontWeight: 'bold' }}>继续下一步</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
