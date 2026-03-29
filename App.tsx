@@ -449,6 +449,7 @@ export default function App() {
       <MapScreen
         gameMap={gameMap}
         currentLayer={currentLayer}
+        playerGold={playerGold}
         onNodeSelect={handleNodeSelect}
         onBack={() => setCurrentScreen('home')}
         onGoHome={() => setCurrentScreen('home')}

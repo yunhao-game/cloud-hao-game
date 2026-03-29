@@ -130,7 +130,10 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
       setBoardHeroes(newBoard);
       setBenchHeroes(onBench);
     }
-    refreshShop();
+    // 只有在非锁定状态下才刷新商店
+    if (!shopLocked) {
+      refreshShop();
+    }
   }, []);
 
   // 同步金币（当从战斗结果直接进入下一场时，组件不会重新挂载）

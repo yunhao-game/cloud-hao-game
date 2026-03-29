@@ -9,6 +9,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface MapScreenProps {
   gameMap: GameMap;
   currentLayer?: number;  // 当前地图层数（1-4）
+  playerGold?: number;    // 玩家金币（全局）
   onNodeSelect: (node: MapNode) => void;
   onBack: () => void;
   onGoHome: () => void;
@@ -17,6 +18,7 @@ interface MapScreenProps {
 export const MapScreen: React.FC<MapScreenProps> = ({
   gameMap,
   currentLayer = 1,
+  playerGold = 0,
   onNodeSelect,
   onBack,
   onGoHome,
@@ -297,7 +299,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           <Text style={styles.backText}>← 退出</Text>
         </TouchableOpacity>
         <Text style={styles.title}>🗺️ 第 {currentLayer} 张地图</Text>
-        <Text style={styles.goldText}>💰{map?.gold || 0}</Text>
+        <Text style={styles.goldText}>💰{playerGold}</Text>
       </View>
 
       {/* 图例 */}
