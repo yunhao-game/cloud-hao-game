@@ -78,10 +78,11 @@ export default function App() {
   const [currentLayer, setCurrentLayer] = useState(1);
   const MAX_LAYER = 4;
 
-  // 计算升级消耗（首次升级到2级需要10金币，之后每次+10）
+  // 升级消耗（指数增长）
   const getLevelUpCost = (level: number) => {
     if (level >= 10) return 0; // 满级
-    return level * 10;
+    const costs = [0, 4, 8, 12, 20, 32, 48, 72, 100, 140];
+    return costs[level] || level * 10;
   };
 
   // 计算连胜/连败奖励
@@ -154,6 +155,9 @@ export default function App() {
       // 战斗节点：进入战斗准备
       // 先设置 selectedNode（确保在切换屏幕前状态已设置）
       setSelectedNode(node);
+      
+      // 每场战斗重置免费刷新次数
+      setFreeRefreshCount(1);
       
       // 自动打开商店（如果未锁定）
       if (!shopLocked) {
@@ -275,15 +279,12 @@ export default function App() {
       // 4张图全部通关，显示胜利界面
       setCurrentScreen('victory');
     } else {
-      // 进入下一层地图（保留金币）
+      // 进入下一层地图（保留金币、连胜连败）
       const nextLayer = currentLayer + 1;
       const newMap = generateMap(nextLayer);
-      // 不重置金币，保持玩家当前金币
       setGameMap(newMap);
       setCurrentLayer(nextLayer);
-      setWinStreak(0); // 重置连胜
-      setLoseStreak(0); // 重置连败
-      setFreeRefreshCount(1); // 重置免费刷新次数
+      setFreeRefreshCount(1); // 重置免费刷新次数（每层一次）
       setCurrentScreen('map');
     }
   };

@@ -748,9 +748,13 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
           setBoardHeroes(newBoard);
         } else {
           // 没有放到有效格子，检查是否放回暂存区
-          const isInBench = releaseY > 450 && releaseY < 600;
+          // 棋盘高度是 8 * CELL_SIZE，从 boardLayout.y 开始
+          // 备战区在棋盘下方，通过 screen height 来判断
+          const BOARD_START_Y = 180;
+          const BOARD_HEIGHT = CELL_SIZE * 8;
+          const isOutsideBoard = releaseY < boardLayout.y || releaseY > boardLayout.y + BOARD_HEIGHT;
           
-          if (isInBench && from === 'board') {
+          if (isOutsideBoard && from === 'board') {
             // 从棋盘移回暂存区
             const newBoard = new Map(boardHeroes);
             newBoard.delete(`${x}_${y}`);
