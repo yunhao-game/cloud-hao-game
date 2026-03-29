@@ -56,7 +56,14 @@ export default function App() {
   const [playerLevel, setPlayerLevel] = useState(1);
 
   // 玩家金币（跨地图保留）
-  const [playerGold, setPlayerGold] = useState(10);
+  const [playerGold, setPlayerGold] = useState(5);
+  
+  // 连胜/连败状态
+  const [winStreak, setWinStreak] = useState(0);
+  const [loseStreak, setLoseStreak] = useState(0);
+  
+  // 免费刷新次数（每层一次）
+  const [freeRefreshCount, setFreeRefreshCount] = useState(1);
 
   // 商店是否锁定
   const [shopLocked, setShopLocked] = useState(false);
@@ -77,6 +84,19 @@ export default function App() {
     return level * 10;
   };
 
+  // 计算连胜/连败奖励
+  const calculateStreakReward = (isWin: boolean): number => {
+    const streak = isWin ? winStreak : loseStreak;
+    if (streak >= 4) return 2;
+    if (streak >= 2) return 1;
+    return 0;
+  };
+
+  // 计算利息（每10金+1，上限+5）
+  const calculateInterest = (totalGold: number): number => {
+    return Math.min(5, Math.floor(totalGold / 10));
+  };
+
   // 处理升级
   const handleLevelUp = () => {
     const cost = getLevelUpCost(playerLevel);
@@ -94,7 +114,10 @@ export default function App() {
     setPlayerHealth(100); // 重置生命值
     setMaxPopulation(2); // 重置人口
     setPlayerLevel(1);   // 重置等级
-    setPlayerGold(10);   // 重置金币
+    setPlayerGold(5);    // 重置金币
+    setWinStreak(0);     // 重置连胜
+    setLoseStreak(0);    // 重置连败
+    setFreeRefreshCount(1); // 重置免费刷新次数
     setCurrentLayer(1);   // 重置地图层数
     setPlayerHeroes([]);
     setShopLocked(false); // 重置商店锁定状态
@@ -196,18 +219,39 @@ export default function App() {
 
     // 计算奖励金币
     let goldReward = 0;
+    let interestGold = 0;
+    let streakGold = 0;
+    
     if (battleResult === 'win') {
       switch (selectedNode.type) {
-        case 'monster': goldReward = 10; break;
-        case 'elite': goldReward = 20; break;
-        case 'boss': goldReward = 100; break;
-        default: goldReward = 5;
+        case 'monster': goldReward = 5; break;
+        case 'elite': goldReward = 8; break;
+        case 'boss': goldReward = 15; break;
+        default: goldReward = 3;
       }
+      
+      // 计算连胜奖励
+      streakGold = calculateStreakReward(true);
+      
+      // 计算利息
+      interestGold = calculateInterest(playerGold + goldReward + streakGold);
+    } else {
+      // 战斗失败，获得连败补偿
+      streakGold = calculateStreakReward(false);
+    }
+    
+    // 更新连胜状态
+    if (battleResult === 'win') {
+      setWinStreak(winStreak + 1);
+      setLoseStreak(0);
+    } else {
+      setWinStreak(0);
+      setLoseStreak(loseStreak + 1);
     }
 
-    // 更新玩家金币（跨地图保留）
-    const newGold = playerGold + goldReward;
-    setPlayerGold(newGold);
+    // 更新玩家金币（跨地图保留）：基础奖励 + 连胜/连败 + 利息
+    const totalGold = playerGold + goldReward + streakGold + interestGold;
+    setPlayerGold(totalGold);
 
     // 更新地图状态（用于显示）
     const newMap = completeNode(gameMap, goldReward);
@@ -237,6 +281,9 @@ export default function App() {
       // 不重置金币，保持玩家当前金币
       setGameMap(newMap);
       setCurrentLayer(nextLayer);
+      setWinStreak(0); // 重置连胜
+      setLoseStreak(0); // 重置连败
+      setFreeRefreshCount(1); // 重置免费刷新次数
       setCurrentScreen('map');
     }
   };
@@ -349,6 +396,10 @@ export default function App() {
         onShopLockedChange={setShopLocked}
         shopLockedHeroes={shopLockedHeroes}
         onShopLockedHeroesChange={setShopLockedHeroes}
+        freeRefreshCount={freeRefreshCount}
+        onFreeRefreshCountChange={setFreeRefreshCount}
+        winStreak={winStreak}
+        loseStreak={loseStreak}
       />
     );
   };

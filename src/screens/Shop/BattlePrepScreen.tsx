@@ -34,6 +34,12 @@ interface BattlePrepScreenProps {
   onShopLockedChange?: (locked: boolean) => void;
   shopLockedHeroes?: Hero[];
   onShopLockedHeroesChange?: (heroes: Hero[]) => void;
+  // 免费刷新次数
+  freeRefreshCount?: number;
+  onFreeRefreshCountChange?: (count: number) => void;
+  // 连胜/连败状态
+  winStreak?: number;
+  loseStreak?: number;
 }
 
 // 稀有度颜色
@@ -65,6 +71,10 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   onShopLockedChange,
   shopLockedHeroes: externalShopLockedHeroes = [],
   onShopLockedHeroesChange,
+  onFreeRefreshCountChange,
+  freeRefreshCount = 1,
+  winStreak = 0,
+  loseStreak = 0,
 }) => {
   const [benchHeroes, setBenchHeroes] = useState<Hero[]>([]);
   const [boardHeroes, setBoardHeroes] = useState<Map<string, Hero>>(new Map());
@@ -209,9 +219,18 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   };
 
   const refreshShop = () => {
-    // 暂时禁用刷新商店功能用于调试
-    // if (currentGold < 2) return;
-    // setCurrentGold(prev => prev - 2);
+    // 检查是否有免费刷新次数
+    const hasFreeRefresh = freeRefreshCount > 0;
+    
+    // 如果没有免费刷新且金币不足，不执行
+    if (!hasFreeRefresh && currentGold < 2) return;
+    
+    // 扣除金币或免费刷新次数
+    if (hasFreeRefresh) {
+      onFreeRefreshCountChange?.(freeRefreshCount - 1);
+    } else {
+      setCurrentGold(prev => prev - 2);
+    }
     
     const newShop: Hero[] = [];
     
@@ -881,6 +900,25 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
           <Text style={styles.goldText}>💰 {currentGold}</Text>
         </View>
       </View>
+      
+      {/* 1.5 连胜/连败状态栏 */}
+      <View style={styles.statusBar}>
+        {winStreak > 0 && (
+          <View style={styles.statusItem}>
+            <Text style={styles.streakText}>🔥 连胜 {winStreak}</Text>
+          </View>
+        )}
+        {loseStreak > 0 && (
+          <View style={styles.statusItem}>
+            <Text style={[styles.streakText, {color: '#888'}]}>💀 连败 {loseStreak}</Text>
+          </View>
+        )}
+        {currentGold >= 10 && (
+          <View style={styles.statusItem}>
+            <Text style={styles.interestText}>💡 利息 +{Math.min(5, Math.floor(currentGold / 10))}</Text>
+          </View>
+        )}
+      </View>
 
       {/* 2. 遗物栏（占位） */}
       <View style={styles.relicsBar}>
@@ -968,11 +1006,13 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
             
             <View style={styles.shopActions}>
               <TouchableOpacity 
-                style={[styles.refreshButton, (currentGold < 2 || shopLocked) && styles.buttonDisabled]}
+                style={[styles.refreshButton, (currentGold < 2 && freeRefreshCount <= 0 || shopLocked) && styles.buttonDisabled]}
                 onPress={refreshShop}
-                disabled={currentGold < 2 || shopLocked}
+                disabled={currentGold < 2 && freeRefreshCount <= 0 || shopLocked}
               >
-                <Text style={styles.refreshText}>刷新 (💰2)</Text>
+                <Text style={styles.refreshText}>
+                  {freeRefreshCount > 0 ? `🔄 免费刷新 (${freeRefreshCount})` : `刷新 (💰2)`}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.lockButton, shopLocked && styles.lockButtonActive]}
@@ -1093,6 +1133,16 @@ const styles = StyleSheet.create({
   },
   statusItem: {
     alignItems: 'center',
+  },
+  streakText: {
+    color: '#ff6b35',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  interestText: {
+    color: '#4ade80',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   // 2. 遗物栏
   relicsBar: {
