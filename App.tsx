@@ -202,9 +202,10 @@ export default function App() {
   const renderBattlePrep = () => {
     if (!gameMap || !selectedNode) return null;
     
-    // 敌人数量设为0用于调试
+    // 敌人数量
     let enemyCount = 0;
-    if (selectedNode.type === 'elite') enemyCount = 3 + Math.floor((currentLayer - 1) / 2);
+    if (selectedNode.type === 'monster') enemyCount = 1 + Math.floor((currentLayer - 1) / 3);  // 普通怪: 1-2个
+    if (selectedNode.type === 'elite') enemyCount = 3 + Math.floor((currentLayer - 1) / 2);  // 精英: 3-5个
     if (selectedNode.type === 'boss') enemyCount = 5 + (currentLayer - 1) * 2;  // Boss: 5, 7, 9, 11
     
     // 难度加成系数
