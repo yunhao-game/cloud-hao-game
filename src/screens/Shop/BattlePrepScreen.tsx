@@ -56,7 +56,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   const [benchHeroes, setBenchHeroes] = useState<Hero[]>([]);
   const [boardHeroes, setBoardHeroes] = useState<Map<string, Hero>>(new Map());
   const [shopHeroes, setShopHeroes] = useState<Hero[]>([]);
-  const [shopVisible, setShopVisible] = useState(true);
+  const [shopVisible, setShopVisible] = useState(false);
   const [currentGold, setCurrentGold] = useState(gold);
   
   // 拖拽相关状态
@@ -157,21 +157,21 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     2: ['dragon_warrior', 'naga_mage', 'element_guard', 'succubus'],
     3: ['shadow_assassin', 'tide_lord'],
     4: ['succubus_queen'],
-    5: [], // 5费英雄暂未添加
+    5: ['succubus_queen'], // 5费暂用4费替代
   };
 
   const refreshShop = () => {
-    if (currentGold < 2) return;
-    
-    setCurrentGold(prev => prev - 2);
+    // 暂时禁用刷新商店功能用于调试
+    // if (currentGold < 2) return;
+    // setCurrentGold(prev => prev - 2);
     
     const newShop: Hero[] = [];
     
-    for (let i = 0; i < 5; i++) {
-      // 根据玩家等级随机抽取稀有度
-      const rarity = rollRarity(playerLevel);
-      const heroIds = heroesByRarity[rarity] || heroesByRarity[1];
-      const randomId = heroIds[Math.floor(Math.random() * heroIds.length)];
+    // 简化：固定生成2个英雄用于测试
+    const testHeroes = ['soldier', 'peasant'];
+    
+    for (let i = 0; i < 2; i++) {
+      const randomId = testHeroes[i];
       
       if (!randomId) continue;
       
@@ -179,7 +179,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
         id: randomId + '_' + Date.now() + '_' + i,
         baseId: randomId,
         name: getHeroName(randomId),
-        rarity: rarity as 1 | 2 | 3 | 4 | 5,
+        rarity: getHeroRarity(randomId),
         star: 0,
         faction: getHeroFaction(randomId),
         job: getHeroJob(randomId),
@@ -190,7 +190,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
         speed: getHeroSpeed(randomId),
         range: getHeroRange(randomId),
         cost: getHeroCost(randomId),
-        skill: { name: '技能', description: '', effect: () => {} },
+        skill: { name: '技能', description: '英雄技能', effect: (_target: Hero, _self: Hero) => {} },
         isOnBoard: false,
         boardX: -1,
         boardY: -1,

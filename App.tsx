@@ -202,8 +202,8 @@ export default function App() {
   const renderBattlePrep = () => {
     if (!gameMap || !selectedNode) return null;
     
-    // 根据节点类型确定敌人数量（随层数增加）
-    let enemyCount = 2 + Math.floor((currentLayer - 1) / 2);  // 第1-2层2个，第3-4层3个
+    // 敌人数量设为0用于调试
+    let enemyCount = 0;
     if (selectedNode.type === 'elite') enemyCount = 3 + Math.floor((currentLayer - 1) / 2);
     if (selectedNode.type === 'boss') enemyCount = 5 + (currentLayer - 1) * 2;  // Boss: 5, 7, 9, 11
     
@@ -228,7 +228,7 @@ export default function App() {
         speed: 50,
         range: 1,
         cost: 0,
-        skill: { name: '攻击', description: '', effect: () => {} },
+        skill: { name: '攻击', description: '普通攻击', effect: (_target: Hero, _self: Hero) => {} },
         isOnBoard: false,
         boardX: 7,
         boardY: 2 + i,
