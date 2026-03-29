@@ -27,6 +27,11 @@ interface BattlePrepScreenProps {
   playerLevel?: number;
   onLevelUp?: () => void;
   levelUpCost?: number;
+  // 商店锁定相关
+  shopVisible?: boolean;
+  onShopVisibleChange?: (visible: boolean) => void;
+  shopLocked?: boolean;
+  onShopLockedChange?: (locked: boolean) => void;
 }
 
 // 稀有度颜色
@@ -52,12 +57,39 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   playerLevel = 1,
   onLevelUp,
   levelUpCost = 10,
+  shopVisible: externalShopVisible = false,
+  onShopVisibleChange,
+  shopLocked: externalShopLocked = false,
+  onShopLockedChange,
 }) => {
   const [benchHeroes, setBenchHeroes] = useState<Hero[]>([]);
   const [boardHeroes, setBoardHeroes] = useState<Map<string, Hero>>(new Map());
   const [shopHeroes, setShopHeroes] = useState<Hero[]>([]);
-  const [shopVisible, setShopVisible] = useState(false);
+  const [shopVisible, setShopVisible] = useState(externalShopVisible);
+  const [shopLocked, setShopLocked] = useState(externalShopLocked);
   const [currentGold, setCurrentGold] = useState(gold);
+  
+  // 同步外部传入的 shopVisible 状态
+  useEffect(() => {
+    setShopVisible(externalShopVisible);
+  }, [externalShopVisible]);
+  
+  // 同步外部传入的 shopLocked 状态
+  useEffect(() => {
+    setShopLocked(externalShopLocked);
+  }, [externalShopLocked]);
+  
+  // 封装 setShopVisible，同步到外部状态
+  const handleSetShopVisible = (visible: boolean) => {
+    setShopVisible(visible);
+    onShopVisibleChange?.(visible);
+  };
+  
+  // 封装 setShopLocked，同步到外部状态
+  const handleSetShopLocked = (locked: boolean) => {
+    setShopLocked(locked);
+    onShopLockedChange?.(locked);
+  };
   
   // 拖拽相关状态
   const [draggingHero, setDraggingHero] = useState<{ hero: Hero; from: 'bench' | 'board'; x: number; y: number } | null>(null);
@@ -167,11 +199,14 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     
     const newShop: Hero[] = [];
     
-    // 简化：固定生成2个英雄用于测试
-    const testHeroes = ['soldier', 'peasant'];
-    
-    for (let i = 0; i < 2; i++) {
-      const randomId = testHeroes[i];
+    // 生成4个英雄，按玩家等级概率
+    for (let i = 0; i < 4; i++) {
+      // 根据玩家等级随机抽取稀有度
+      const rarity = rollRarity(playerLevel);
+      
+      // 从对应稀有度的英雄列表中随机选择一个
+      const heroIds = heroesByRarity[rarity];
+      const randomId = heroIds[Math.floor(Math.random() * heroIds.length)];
       
       if (!randomId) continue;
       
@@ -520,7 +555,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     // 更新备战区
     setBenchHeroes(finalBench);
     
-    setShopVisible(false);
+    handleSetShopVisible(false);
     onStartBattle(Array.from(finalBoard.values()), allHeroes, currentGold);
   };
 
@@ -898,7 +933,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
           <View style={styles.shopModal}>
             <View style={styles.shopHeader}>
               <Text style={styles.shopTitle}>英雄商店</Text>
-              <TouchableOpacity onPress={() => setShopVisible(false)}>
+              <TouchableOpacity onPress={() => handleSetShopVisible(false)}>
                 <Text style={styles.closeShopText}>关闭</Text>
               </TouchableOpacity>
             </View>
@@ -917,11 +952,19 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
             
             <View style={styles.shopActions}>
               <TouchableOpacity 
-                style={[styles.refreshButton, currentGold < 2 && styles.buttonDisabled]}
+                style={[styles.refreshButton, (currentGold < 2 || shopLocked) && styles.buttonDisabled]}
                 onPress={refreshShop}
-                disabled={currentGold < 2}
+                disabled={currentGold < 2 || shopLocked}
               >
                 <Text style={styles.refreshText}>刷新 (💰2)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.lockButton, shopLocked && styles.lockButtonActive]}
+                onPress={() => handleSetShopLocked(!shopLocked)}
+              >
+                <Text style={[styles.lockButtonText, shopLocked && styles.lockButtonTextActive]}>
+                  {shopLocked ? '🔒 已锁定' : '🔓 未锁定'}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -956,7 +999,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.bottomButton, styles.shopButton]}
-          onPress={() => setShopVisible(true)}
+          onPress={() => handleSetShopVisible(true)}
           disabled={shopVisible}
         >
           <Text style={styles.bottomButtonText}>🛒 商店</Text>
@@ -1335,6 +1378,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   shopActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
   },
   refreshButton: {
@@ -1343,6 +1389,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  lockButton: {
+    backgroundColor: '#666',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  lockButtonActive: {
+    backgroundColor: '#f44336',
+  },
+  lockButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  lockButtonTextActive: {
+    color: '#fff',
   },
   buttonDisabled: {
     backgroundColor: '#555',

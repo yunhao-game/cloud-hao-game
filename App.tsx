@@ -55,6 +55,15 @@ export default function App() {
   // 玩家等级（初始 1，最高 10）
   const [playerLevel, setPlayerLevel] = useState(1);
 
+  // 玩家金币（跨地图保留）
+  const [playerGold, setPlayerGold] = useState(10);
+
+  // 商店是否锁定
+  const [shopLocked, setShopLocked] = useState(false);
+
+  // 商店是否可见（用于自动打开商店）
+  const [shopVisible, setShopVisible] = useState(false);
+
   // 当前地图层数（1-4）
   const [currentLayer, setCurrentLayer] = useState(1);
   const MAX_LAYER = 4;
@@ -68,9 +77,9 @@ export default function App() {
   // 处理升级
   const handleLevelUp = () => {
     const cost = getLevelUpCost(playerLevel);
-    if (playerLevel >= 10 || !gameMap || gameMap.gold < cost) return;
+    if (playerLevel >= 10 || playerGold < cost) return;
     
-    setGameMap({ ...gameMap, gold: gameMap.gold - cost });
+    setPlayerGold(playerGold - cost);
     setPlayerLevel(playerLevel + 1);
     setMaxPopulation(maxPopulation + 1); // 每次升级+1人口
   };
@@ -82,8 +91,10 @@ export default function App() {
     setPlayerHealth(100); // 重置生命值
     setMaxPopulation(2); // 重置人口
     setPlayerLevel(1);   // 重置等级
+    setPlayerGold(10);   // 重置金币
     setCurrentLayer(1);   // 重置地图层数
     setPlayerHeroes([]);
+    setShopLocked(false); // 重置商店锁定状态
     setCurrentScreen('map');
   };
 
@@ -117,6 +128,11 @@ export default function App() {
       // 先设置 selectedNode（确保在切换屏幕前状态已设置）
       setSelectedNode(node);
       
+      // 自动打开商店（如果未锁定）
+      if (!shopLocked) {
+        setShopVisible(true);
+      }
+      
       await waitForDebug(4, '准备切换到 battlePrep', { nodeType: node.type, selectedNodeId: node.id });
       
       // ====== 步骤4-1: 关闭调试弹窗 ======
@@ -138,11 +154,12 @@ export default function App() {
 
   // 开始战斗
   const handleStartBattle = (team: Hero[], allHeroes: Hero[], remainingGold: number) => {
-    // 更新游戏金币（扣除购买花费）
-    if (gameMap) {
-      const newMap = { ...gameMap, gold: remainingGold };
-      setGameMap(newMap);
-    }
+    // 更新玩家金币（使用全局金币）
+    setPlayerGold(remainingGold);
+    
+    // 关闭商店
+    setShopVisible(false);
+    
     // 生成敌人团队并保存到状态
     const enemy = generateEnemyTeam();
     setEnemyTeam(enemy);
@@ -184,7 +201,11 @@ export default function App() {
       }
     }
 
-    // 更新地图状态
+    // 更新玩家金币（跨地图保留）
+    const newGold = playerGold + goldReward;
+    setPlayerGold(newGold);
+
+    // 更新地图状态（用于显示）
     const newMap = completeNode(gameMap, goldReward);
     setGameMap(newMap);
     setSelectedNode(null);
@@ -206,9 +227,10 @@ export default function App() {
       // 4张图全部通关，显示胜利界面
       setCurrentScreen('victory');
     } else {
-      // 进入下一层地图
+      // 进入下一层地图（保留金币）
       const nextLayer = currentLayer + 1;
       const newMap = generateMap(nextLayer);
+      // 不重置金币，保持玩家当前金币
       setGameMap(newMap);
       setCurrentLayer(nextLayer);
       setCurrentScreen('map');
@@ -221,22 +243,27 @@ export default function App() {
   };
 
   // 节点完成（商店、篝火、事件）
-  const handleNodeComplete = () => {
+  const handleNodeComplete = (remainingGold?: number) => {
     if (!gameMap || !selectedNode) return;
 
     let goldReward = 0;
     switch (selectedNode.type) {
       case 'shop':
-        // 商店花费已经在购买时处理
+        // 商店花费已经在购买时处理，需要同步金币
+        if (remainingGold !== undefined) {
+          setPlayerGold(remainingGold);
+        }
         break;
       case 'campfire':
         // 篝火回复
         break;
       case 'event':
         goldReward = 10 + Math.floor(Math.random() * 21); // 10-30金币
+        setPlayerGold(playerGold + goldReward);
         break;
       default:
         goldReward = 5;
+        setPlayerGold(playerGold + goldReward);
     }
 
     const newMap = completeNode(gameMap, goldReward);
@@ -299,7 +326,7 @@ export default function App() {
     
     return (
       <BattlePrepScreen
-        gold={gameMap.gold}
+        gold={playerGold}
         onStartBattle={handleStartBattle}
         onBack={() => setCurrentScreen('map')}
         enemyCount={enemyCount}
@@ -312,6 +339,10 @@ export default function App() {
         playerLevel={playerLevel}
         onLevelUp={handleLevelUp}
         levelUpCost={getLevelUpCost(playerLevel)}
+        shopVisible={shopVisible}
+        onShopVisibleChange={setShopVisible}
+        shopLocked={shopLocked}
+        onShopLockedChange={setShopLocked}
       />
     );
   };
