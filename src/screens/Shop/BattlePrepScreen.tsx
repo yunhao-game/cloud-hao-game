@@ -32,6 +32,8 @@ interface BattlePrepScreenProps {
   onShopVisibleChange?: (visible: boolean) => void;
   shopLocked?: boolean;
   onShopLockedChange?: (locked: boolean) => void;
+  shopLockedHeroes?: Hero[];
+  onShopLockedHeroesChange?: (heroes: Hero[]) => void;
 }
 
 // 稀有度颜色
@@ -61,6 +63,8 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   onShopVisibleChange,
   shopLocked: externalShopLocked = false,
   onShopLockedChange,
+  shopLockedHeroes: externalShopLockedHeroes = [],
+  onShopLockedHeroesChange,
 }) => {
   const [benchHeroes, setBenchHeroes] = useState<Hero[]>([]);
   const [boardHeroes, setBoardHeroes] = useState<Map<string, Hero>>(new Map());
@@ -87,6 +91,13 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   
   // 封装 setShopLocked，同步到外部状态
   const handleSetShopLocked = (locked: boolean) => {
+    if (locked) {
+      // 锁定时：保存当前商店英雄
+      onShopLockedHeroesChange?.([...shopHeroes]);
+    } else {
+      // 解锁时：清空保存的英雄
+      onShopLockedHeroesChange?.([]);
+    }
     setShopLocked(locked);
     onShopLockedChange?.(locked);
   };
@@ -130,8 +141,10 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
       setBoardHeroes(newBoard);
       setBenchHeroes(onBench);
     }
-    // 只有在非锁定状态下才刷新商店
-    if (!shopLocked) {
+    // 锁定状态：从保存的英雄中读取；非锁定状态：正常刷新
+    if (externalShopLocked && externalShopLockedHeroes.length > 0) {
+      setShopHeroes(externalShopLockedHeroes);
+    } else {
       refreshShop();
     }
   }, []);

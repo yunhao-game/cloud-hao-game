@@ -61,6 +61,9 @@ export default function App() {
   // 商店是否锁定
   const [shopLocked, setShopLocked] = useState(false);
 
+  // 锁定状态下的商店英雄（保存锁定时的英雄）
+  const [shopLockedHeroes, setShopLockedHeroes] = useState<Hero[]>([]);
+
   // 商店是否可见（用于自动打开商店）
   const [shopVisible, setShopVisible] = useState(false);
 
@@ -95,6 +98,7 @@ export default function App() {
     setCurrentLayer(1);   // 重置地图层数
     setPlayerHeroes([]);
     setShopLocked(false); // 重置商店锁定状态
+    setShopLockedHeroes([]); // 清空锁定的商店英雄
     setCurrentScreen('map');
   };
 
@@ -343,6 +347,8 @@ export default function App() {
         onShopVisibleChange={setShopVisible}
         shopLocked={shopLocked}
         onShopLockedChange={setShopLocked}
+        shopLockedHeroes={shopLockedHeroes}
+        onShopLockedHeroesChange={setShopLockedHeroes}
       />
     );
   };
