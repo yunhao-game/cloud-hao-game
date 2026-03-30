@@ -272,9 +272,6 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     // 应用羁绊效果到棋盘英雄
     const newBoard = applySynergiesToBoard(boardHeroes);
     
-    // 关键修复：将带羁绊加成的 newBoard 更新到状态中
-    setBoardHeroes(newBoard);
-    
     // 更新羁绊显示
     updateSynergyInfo();
     
