@@ -14,6 +14,7 @@ const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40) / BOARD_WIDTH);
 
 interface BattlePrepScreenProps {
   gold: number;
+  onGoldChange?: (gold: number) => void;
   onStartBattle: (boardHeroes: Hero[], allHeroes: Hero[], remainingGold: number) => void;
   onBack: () => void;
   enemyCount: number;
@@ -50,6 +51,7 @@ const RARITY_COLORS: Record<number, string> = {
 
 export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   gold,
+  onGoldChange,
   onStartBattle,
   onBack,
   enemyCount,
@@ -77,6 +79,12 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   const [shopVisible, setShopVisible] = useState(externalShopVisible);
   const [shopLocked, setShopLocked] = useState(externalShopLocked);
   const [currentGold, setCurrentGold] = useState(gold);
+  
+  // 同步金币到外部状态
+  const syncGold = (newGold: number) => {
+    setCurrentGold(newGold);
+    onGoldChange?.(newGold);
+  };
   
   // 本场战斗已使用的免费刷新次数
   const [usedFreeRefresh, setUsedFreeRefresh] = useState(0);
@@ -161,7 +169,10 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
 
   // 同步金币（当从战斗结果直接进入下一场时，组件不会重新挂载）
   useEffect(() => {
-    setCurrentGold(gold);
+    // 只有当外部金币和当前金币不同时才更新（避免循环）
+    if (gold !== currentGold) {
+      setCurrentGold(gold);
+    }
   }, [gold]);
 
   // 根据屏幕坐标获取格子位置（使用实际布局位置）
@@ -229,7 +240,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     if (hasFreeRefresh) {
       setUsedFreeRefresh(prev => prev + 1);
     } else {
-      setCurrentGold(prev => prev - 2);
+      syncGold(currentGold - 2);
     }
     
     const newShop: Hero[] = [];
@@ -430,7 +441,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     const refund = calculateSellRefund(hero);
     
     // 返还金币
-    setCurrentGold(prev => prev + refund);
+    syncGold(currentGold + refund);
     
     // 从对应位置移除
     if (from === 'bench') {
@@ -493,7 +504,8 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
       } else {
         // 备战区已满，自动出售
         const refund = calculateSellRefund(weakHero);
-        setCurrentGold(prev => prev + refund);
+        const newGold = currentGold + refund;
+        syncGold(newGold);
       }
     });
     
@@ -562,7 +574,7 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     if (currentGold < hero.rarity) return;
     if (benchHeroes.length >= BENCH_SIZE) return;
     
-    setCurrentGold(prev => prev - hero.rarity);
+    syncGold(currentGold - hero.rarity);
     
     // 添加到暂存区，然后检查升星（同时检查棋盘）
     const result = checkAndUpgradeStar([...benchHeroes, hero], boardHeroes);
@@ -1046,6 +1058,8 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
           onPress={() => {
             if (playerLevel < 10 && currentGold >= levelUpCost) {
               onLevelUp?.();
+              // 同步扣减金币
+              syncGold(currentGold - levelUpCost);
             }
           }}
           disabled={playerLevel >= 10 || currentGold < levelUpCost}

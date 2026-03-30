@@ -383,6 +383,7 @@ export default function App() {
         playerLevel={playerLevel}
         onLevelUp={handleLevelUp}
         levelUpCost={getLevelUpCost(playerLevel)}
+        onGoldChange={setPlayerGold}
         shopVisible={shopVisible}
         onShopVisibleChange={setShopVisible}
         shopLocked={shopLocked}
