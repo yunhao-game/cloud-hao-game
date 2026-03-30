@@ -166,19 +166,18 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     // 重新计算羁绊并应用到localStats
     recalculateSynergies(boardUnits);
     
-    // 将羁绊加成后的属性写回hero的localStats
+    // 将羁绊加成写入hero的localStats（不覆盖基础属性！）
     const newBoard = new Map(board);
     boardUnits.forEach((unit) => {
       if (unit.localStats) {
-        // 找到对应的hero并更新localStats
+        // 找到对应的hero并只更新localStats
         for (const [key, hero] of newBoard) {
           if (hero.id === unit.hero.id) {
             newBoard.set(key, {
               ...hero,
+              // 只更新localStats，不覆盖基础属性！
+              // 这样弹窗会显示：基础属性（含升星）+ 羁绊加成（localStats）
               localStats: { ...unit.localStats },
-              maxHp: unit.localStats.maxHp,
-              hp: unit.localStats.maxHp,
-              attack: unit.localStats.attack,
             });
             break;
           }
