@@ -719,15 +719,10 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     setBenchHeroes(finalBench);
     
     // 为每个上阵英雄应用羁绊效果
+    // 注意：不要用原始英雄数据覆盖升星后的属性，直接使用hero的当前属性
     const battleUnits: BattleUnit[] = Array.from(finalBoard.values()).map((hero, index) => {
-      const heroData = baseHeroes.find(h => h.id === (hero.baseId || hero.id));
       const unit: BattleUnit = {
-        hero: {
-          ...hero,
-          maxHp: heroData?.maxHp || hero.maxHp,
-          attack: heroData?.attack || hero.attack,
-          defense: heroData?.defense || hero.defense,
-        },
+        hero: { ...hero },
         id: `battle_${index}`,
         x: hero.boardX || 0,
         y: hero.boardY || 0,
