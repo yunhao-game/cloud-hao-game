@@ -370,6 +370,7 @@ export default function App() {
     
     return (
       <BattlePrepScreen
+        key={selectedNode.id}
         gold={playerGold}
         onStartBattle={handleStartBattle}
         onBack={() => setCurrentScreen('map')}
