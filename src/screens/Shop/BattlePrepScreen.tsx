@@ -34,9 +34,6 @@ interface BattlePrepScreenProps {
   onShopLockedChange?: (locked: boolean) => void;
   shopLockedHeroes?: Hero[];
   onShopLockedHeroesChange?: (heroes: Hero[]) => void;
-  // 免费刷新次数
-  freeRefreshCount?: number;
-  onFreeRefreshCountChange?: (count: number) => void;
   // 连胜/连败状态
   winStreak?: number;
   loseStreak?: number;
@@ -71,8 +68,6 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   onShopLockedChange,
   shopLockedHeroes: externalShopLockedHeroes = [],
   onShopLockedHeroesChange,
-  onFreeRefreshCountChange,
-  freeRefreshCount = 1,
   winStreak = 0,
   loseStreak = 0,
 }) => {
@@ -82,6 +77,11 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   const [shopVisible, setShopVisible] = useState(externalShopVisible);
   const [shopLocked, setShopLocked] = useState(externalShopLocked);
   const [currentGold, setCurrentGold] = useState(gold);
+  
+  // 本场战斗已使用的免费刷新次数
+  const [usedFreeRefresh, setUsedFreeRefresh] = useState(0);
+  // 每场战斗免费刷新次数
+  const FREE_REFRESH_PER_BATTLE = 1;
   
   // 同步外部传入的 shopVisible 状态
   useEffect(() => {
@@ -219,15 +219,15 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   };
 
   const refreshShop = () => {
-    // 检查是否有免费刷新次数
-    const hasFreeRefresh = freeRefreshCount > 0;
+    // 检查是否还有免费刷新次数（本场战斗）
+    const hasFreeRefresh = usedFreeRefresh < FREE_REFRESH_PER_BATTLE;
     
     // 如果没有免费刷新且金币不足，不执行
     if (!hasFreeRefresh && currentGold < 2) return;
     
-    // 扣除金币或免费刷新次数
+    // 扣除金币或增加已使用免费刷新次数
     if (hasFreeRefresh) {
-      onFreeRefreshCountChange?.(freeRefreshCount - 1);
+      setUsedFreeRefresh(prev => prev + 1);
     } else {
       setCurrentGold(prev => prev - 2);
     }
@@ -1010,12 +1010,12 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
             
             <View style={styles.shopActions}>
               <TouchableOpacity 
-                style={[styles.refreshButton, (currentGold < 2 && freeRefreshCount <= 0 || shopLocked) && styles.buttonDisabled]}
+                style={[styles.refreshButton, (currentGold < 2 && usedFreeRefresh >= FREE_REFRESH_PER_BATTLE || shopLocked) && styles.buttonDisabled]}
                 onPress={refreshShop}
-                disabled={currentGold < 2 && freeRefreshCount <= 0 || shopLocked}
+                disabled={currentGold < 2 && usedFreeRefresh >= FREE_REFRESH_PER_BATTLE || shopLocked}
               >
                 <Text style={styles.refreshText}>
-                  {freeRefreshCount > 0 ? `🔄 免费刷新 (${freeRefreshCount})` : `刷新 (💰2)`}
+                  {usedFreeRefresh < FREE_REFRESH_PER_BATTLE ? `🔄 免费刷新 (${FREE_REFRESH_PER_BATTLE - usedFreeRefresh})` : `刷新 (💰2)`}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 

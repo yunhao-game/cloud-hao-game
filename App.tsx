@@ -61,9 +61,6 @@ export default function App() {
   // 连胜/连败状态
   const [winStreak, setWinStreak] = useState(0);
   const [loseStreak, setLoseStreak] = useState(0);
-  
-  // 免费刷新次数（每层一次）
-  const [freeRefreshCount, setFreeRefreshCount] = useState(1);
 
   // 商店是否锁定
   const [shopLocked, setShopLocked] = useState(false);
@@ -118,7 +115,6 @@ export default function App() {
     setPlayerGold(5);    // 重置金币
     setWinStreak(0);     // 重置连胜
     setLoseStreak(0);    // 重置连败
-    setFreeRefreshCount(1); // 重置免费刷新次数
     setCurrentLayer(1);   // 重置地图层数
     setPlayerHeroes([]);
     setShopLocked(false); // 重置商店锁定状态
@@ -155,9 +151,6 @@ export default function App() {
       // 战斗节点：进入战斗准备
       // 先设置 selectedNode（确保在切换屏幕前状态已设置）
       setSelectedNode(node);
-      
-      // 每场战斗重置免费刷新次数
-      setFreeRefreshCount(1);
       
       // 自动打开商店（如果未锁定）
       if (!shopLocked) {
@@ -284,7 +277,6 @@ export default function App() {
       const newMap = generateMap(nextLayer);
       setGameMap(newMap);
       setCurrentLayer(nextLayer);
-      setFreeRefreshCount(1); // 重置免费刷新次数（每层一次）
       setCurrentScreen('map');
     }
   };
@@ -397,8 +389,6 @@ export default function App() {
         onShopLockedChange={setShopLocked}
         shopLockedHeroes={shopLockedHeroes}
         onShopLockedHeroesChange={setShopLockedHeroes}
-        freeRefreshCount={freeRefreshCount}
-        onFreeRefreshCountChange={setFreeRefreshCount}
         winStreak={winStreak}
         loseStreak={loseStreak}
       />
