@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Modal, PanResponder, Animated } from 'react-native';
-import { Hero, HeroRarity, Faction, Job } from '../../types';
+import { Hero, HeroRarity, Faction, Job, BattleUnit } from '../../types';
 import { baseHeroes } from '../../data/heroes';
 import { UnitInfoModal } from '../../components/UnitInfoModal';
+import { recalculateSynergies, calculateSynergyInfo } from '../../game/synergy';
 
 // 棋盘大小
 const BOARD_WIDTH = 7;
@@ -80,6 +81,9 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   const [shopLocked, setShopLocked] = useState(externalShopLocked);
   const [currentGold, setCurrentGold] = useState(gold);
   
+  // 避免羁绊计算循环的标志
+  const isApplyingSynergies = useRef(false);
+  
   // 同步金币到外部状态
   const syncGold = (newGold: number) => {
     setCurrentGold(newGold);
@@ -131,6 +135,86 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
   const [sellModalVisible, setSellModalVisible] = useState(false);
   const [heroToSell, setHeroToSell] = useState<{ hero: Hero; from: 'bench' | 'board'; x: number; y: number } | null>(null);
   
+  // 当前激活的羁绊信息
+  const [activeSynergies, setActiveSynergies] = useState<{ faction: any[]; job: any[] }>({ faction: [], job: [] });
+  
+  // 更新羁绊信息并应用到所有棋盘上的英雄
+  const applySynergiesToBoard = useCallback((board: Map<string, Hero>): Map<string, Hero> => {
+    // 创建临时的BattleUnit格式用于计算羁绊
+    const boardUnits: BattleUnit[] = Array.from(board.values()).map((hero, index) => ({
+      hero: { ...hero },
+      id: `temp_${index}`,
+      x: hero.boardX || 0,
+      y: hero.boardY || 0,
+      currentHp: hero.maxHp,
+      maxHp: hero.maxHp,
+      isDead: false,
+      isPlayer: true,
+      attackCooldown: 0,
+      moveCooldown: 0,
+      skillCooldown: 0,
+      buffs: [],
+      shield: 0,
+      totalDamage: 0,
+      kills: 0,
+    }));
+    
+    // 计算羁绊信息
+    const info = calculateSynergyInfo(boardUnits);
+    setActiveSynergies(info);
+    
+    // 重新计算羁绊并应用到localStats
+    recalculateSynergies(boardUnits);
+    
+    // 将羁绊加成后的属性写回hero的localStats
+    const newBoard = new Map(board);
+    boardUnits.forEach((unit) => {
+      if (unit.localStats) {
+        // 找到对应的hero并更新localStats
+        for (const [key, hero] of newBoard) {
+          if (hero.id === unit.hero.id) {
+            newBoard.set(key, {
+              ...hero,
+              localStats: { ...unit.localStats },
+              maxHp: unit.localStats.maxHp,
+              hp: unit.localStats.maxHp,
+              attack: unit.localStats.attack,
+            });
+            break;
+          }
+        }
+      }
+    });
+    
+    return newBoard;
+  }, []);
+
+  // 更新羁绊信息（不修改localStats，仅用于显示）
+  const updateSynergyInfo = useCallback(() => {
+    // 从棋盘上的英雄创建临时的BattleUnit格式用于计算羁绊
+    const boardUnits = Array.from(boardHeroes.values()).map((hero, index) => ({
+      hero,
+      id: `temp_${index}`,
+      x: hero.boardX || 0,
+      y: hero.boardY || 0,
+      currentHp: hero.maxHp,
+      maxHp: hero.maxHp,
+      isDead: false,
+      isPlayer: true,
+      attackCooldown: 0,
+      moveCooldown: 0,
+      skillCooldown: 0,
+      buffs: [],
+      shield: 0,
+      totalDamage: 0,
+      kills: 0,
+    }));
+    
+    // 计算羁绊信息
+    const info = calculateSynergyInfo(boardUnits);
+    setActiveSynergies(info);
+  }, [boardHeroes]);
+  
   // 动画值
   const pan = useRef(new Animated.ValueXY()).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -175,6 +259,25 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
       setCurrentGold(gold);
     }
   }, [gold]);
+
+  // 当棋盘上的英雄变化时，更新羁绊信息并应用羁绊效果
+  useEffect(() => {
+    if (isApplyingSynergies.current) return;
+    if (boardHeroes.size === 0) {
+      setActiveSynergies({ faction: [], job: [] });
+      return;
+    }
+    
+    isApplyingSynergies.current = true;
+    
+    // 应用羁绊效果到棋盘英雄
+    const newBoard = applySynergiesToBoard(boardHeroes);
+    
+    // 更新羁绊显示
+    updateSynergyInfo();
+    
+    isApplyingSynergies.current = false;
+  }, [boardHeroes, applySynergiesToBoard, updateSynergyInfo]);
 
   // 根据屏幕坐标获取格子位置（使用实际布局位置）
   const getCellFromPosition = (px: number, py: number): {x: number, y: number} | null => {
@@ -607,13 +710,58 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
     
     if (boardHeroes.size === 0) return;
     
-    // 处理人口超限
+    // 处理人口超限（这里会下阵多余棋子，需要重新计算羁绊）
     const adjusted = adjustPopulation(boardHeroes, benchHeroes);
     const finalBoard = adjusted.board;
     const finalBench = adjusted.bench;
     
     // 更新备战区
     setBenchHeroes(finalBench);
+    
+    // 为每个上阵英雄应用羁绊效果
+    const battleUnits: BattleUnit[] = Array.from(finalBoard.values()).map((hero, index) => {
+      const heroData = baseHeroes.find(h => h.id === (hero.baseId || hero.id));
+      const unit: BattleUnit = {
+        hero: {
+          ...hero,
+          maxHp: heroData?.maxHp || hero.maxHp,
+          attack: heroData?.attack || hero.attack,
+          defense: heroData?.defense || hero.defense,
+        },
+        id: `battle_${index}`,
+        x: hero.boardX || 0,
+        y: hero.boardY || 0,
+        currentHp: hero.maxHp,
+        maxHp: hero.maxHp,
+        isDead: false,
+        isPlayer: true,
+        attackCooldown: 0,
+        moveCooldown: 0,
+        skillCooldown: 0,
+        buffs: [],
+        shield: 0,
+        totalDamage: 0,
+        kills: 0,
+      };
+      return unit;
+    });
+    
+    // 应用羁绊效果
+    recalculateSynergies(battleUnits);
+    
+    // 将羁绊加成后的属性写回英雄
+    battleUnits.forEach((unit, index) => {
+      const heroKey = Array.from(finalBoard.keys())[index];
+      if (heroKey && unit.localStats) {
+        const hero = finalBoard.get(heroKey)!;
+        finalBoard.set(heroKey, {
+          ...hero,
+          maxHp: unit.localStats.maxHp,
+          hp: unit.localStats.maxHp,
+          attack: unit.localStats.attack,
+        });
+      }
+    });
     
     handleSetShopVisible(false);
     onStartBattle(Array.from(finalBoard.values()), allHeroes, currentGold);
@@ -930,6 +1078,22 @@ export const BattlePrepScreen: React.FC<BattlePrepScreenProps> = ({
         </View>
       </View>
       
+      {/* 羁绊状态栏 */}
+      {(activeSynergies.job.length > 0 || activeSynergies.faction.length > 0) && (
+        <View style={styles.synergyBar}>
+          {activeSynergies.job.map((synergy, index) => (
+            <Text key={`job_${index}`} style={styles.synergyText}>
+              ⚔️ {synergy.name}({synergy.count})
+            </Text>
+          ))}
+          {activeSynergies.faction.map((synergy, index) => (
+            <Text key={`faction_${index}`} style={styles.synergyText}>
+              🏷️ {synergy.name}({synergy.count})
+            </Text>
+          ))}
+        </View>
+      )}
+      
       {/* 1.5 连胜/连败状态栏 */}
       <View style={styles.statusBar}>
         {winStreak > 0 && (
@@ -1161,6 +1325,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingBottom: 5,
+  },
+  // 羁绊状态栏
+  synergyBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#2d1f3d',
+    borderBottomWidth: 1,
+    borderBottomColor: '#4a3a5a',
+  },
+  synergyText: {
+    color: '#c4b5fd',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginHorizontal: 6,
+    marginVertical: 2,
   },
   statusItem: {
     alignItems: 'center',

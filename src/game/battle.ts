@@ -1,4 +1,5 @@
 import { BattleUnit, BattleState, Hero, ActiveSkill, PassiveSkill, SkillEffectType, PassiveSkillType, DamageNumber } from '../types';
+import { initializeLocalStatsAndApplySynergy, recalculateSynergies } from './synergy';
 
 // ==================== 基础配置 ====================
 const TICK_INTERVAL = 100; // 每个 Tick 100ms
@@ -767,6 +768,9 @@ export const initBattleState = (
     unit.activeSkill = unit.hero.activeSkill || null;
   });
   
+  // 初始化战斗内本地属性并应用羁绊效果
+  initializeLocalStatsAndApplySynergy(playerUnits);
+  
   return {
     playerUnits,
     enemyUnits,
@@ -778,3 +782,6 @@ export const initBattleState = (
     battleResult: 'ongoing',
   };
 };
+
+// 导出重新计算羁绊的函数供外部使用
+export { recalculateSynergies };

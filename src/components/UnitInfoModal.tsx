@@ -169,11 +169,17 @@ export const UnitInfoModal: React.FC<UnitInfoModalProps> = ({
               <View style={styles.statsContainer}>
                 <View style={styles.statRow}>
                   <Text style={styles.statLabel}>❤️ 生命</Text>
-                  <Text style={styles.statValue}>{hero.maxHp}</Text>
+                  <Text style={[styles.statValue, hero.localStats && hero.localStats.maxHp !== hero.maxHp && styles.statBuffed]}>
+                    {hero.localStats?.maxHp || hero.maxHp}
+                    {hero.localStats && hero.localStats.maxHp !== hero.maxHp && ` (+${hero.localStats.maxHp - hero.maxHp})`}
+                  </Text>
                 </View>
                 <View style={styles.statRow}>
                   <Text style={styles.statLabel}>⚔️ 攻击</Text>
-                  <Text style={styles.statValue}>{hero.attack}</Text>
+                  <Text style={[styles.statValue, hero.localStats && hero.localStats.attack !== hero.attack && styles.statBuffed]}>
+                    {hero.localStats?.attack || hero.attack}
+                    {hero.localStats && hero.localStats.attack !== hero.attack && ` (+${hero.localStats.attack - hero.attack})`}
+                  </Text>
                 </View>
                 <View style={styles.statRow}>
                   <Text style={styles.statLabel}>🛡️ 防御</Text>
@@ -323,6 +329,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
+  },
+  statBuffed: {
+    color: '#4ade80',  // 绿色表示羁绊加成
   },
   skillContainer: {
     marginTop: 3,

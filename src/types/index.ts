@@ -47,6 +47,8 @@ export interface Hero {
   boardX: number;
   boardY: number;
   skillCooldown: number;
+  // 战斗内本地属性（每场战斗新建，存储本场所有属性含羁绊加成）
+  localStats?: BattleLocalStats;
 }
 
 // 技能效果类型
@@ -113,6 +115,16 @@ export interface Skill {
   effect: (target: Hero, self: Hero) => void;
 }
 
+// 战斗内本地属性（每场战斗新建，存储本场所有属性含羁绊加成）
+export interface BattleLocalStats {
+  hp: number;           // 当前生命
+  maxHp: number;       // 最大生命（含羁绊加成）
+  attack: number;      // 攻击力（含羁绊加成）
+  defense: number;     // 防御力
+  speed: number;       // 速度
+  range: number;       // 攻击范围
+}
+
 // 战斗单位（英雄在战场上的实例）
 export interface BattleUnit {
   id: string;
@@ -145,6 +157,8 @@ export interface BattleUnit {
   // 战斗统计
   totalDamage: number;
   kills: number;
+  // 战斗内本地属性（每场战斗新建，存储本场所有属性含羁绊加成）
+  localStats?: BattleLocalStats;
 }
 
 // 战斗状态
@@ -268,4 +282,71 @@ export interface EventOption {
   text: string;
   result: string;
   effect: () => void;
+}
+
+// ==================== 羁绊系统 ====================
+
+// 羁绊效果类型
+export type SynergyEffectType = 
+  | 'attack_percent'      // 攻击百分比加成
+  | 'hp_percent'          // 生命百分比加成
+  | 'defense_percent'     // 防御百分比加成
+  | 'dodge'               // 闪避率
+  | 'crit'                // 暴击率
+  | 'life_steal'          // 生命偷取
+  | 'skill_damage'        // 技能伤害
+  | 'attack_speed'        // 攻击速度
+  | 'crit_damage'         // 暴击伤害
+  | 'gold_bonus'          // 金币获取
+  | 'exp_bonus';          // 经验获取
+
+// 羁绊效果
+export interface SynergyEffectConfig {
+  type: SynergyEffectType;
+  value: number;
+}
+
+// 羁绊配置
+export interface SynergyConfig {
+  name: string;
+  description: string;
+  thresholds: number[];           // 激活阈值，如 [2, 4, 6]
+  effects: Record<number, SynergyEffectConfig[] | null>;  // 每个阈值对应的效果列表
+}
+
+// 阵营羁绊统计
+export interface FactionCount {
+  human: number;
+  undead: number;
+  elf: number;
+  dragon: number;
+  sea: number;
+  element: number;
+  demon: number;
+  slave_owner: number;
+}
+
+// 职业羁绊统计
+export interface JobCount {
+  warrior: number;
+  tank: number;
+  archer: number;
+  mage: number;
+  assassin: number;
+  slave: number;
+}
+
+// 单个激活的羁绊
+export interface ActiveSynergyItem {
+  source: 'faction' | 'job';
+  name: string;
+  key: Faction | Job;
+  count: number;
+  effects: SynergyEffectConfig[];  // 效果列表
+}
+
+// 当前激活的所有羁绊
+export interface ActiveSynergies {
+  faction: ActiveSynergyItem[];
+  job: ActiveSynergyItem[];
 }
